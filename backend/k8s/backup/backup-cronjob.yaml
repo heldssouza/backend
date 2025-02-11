@@ -1,0 +1,79 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup
+spec:
+  schedule: "0 1 * * *"  # Run at 1 AM every day
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: mcr.microsoft.com/mssql-tools
+            command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              # Wait for SQL Server to be ready
+              sleep 30
+              
+              # Set backup file name with timestamp
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_FILE="/backup/financial_system_$TIMESTAMP.bak"
+              
+              # Create backup
+              /opt/mssql-tools/bin/sqlcmd -S $DB_HOST -U $DB_USER -P $DB_PASSWORD -Q "BACKUP DATABASE [FinancialSystem] TO DISK = '$BACKUP_FILE' WITH FORMAT"
+              
+              # Upload to cloud storage
+              az storage blob upload \
+                --account-name $STORAGE_ACCOUNT \
+                --account-key $STORAGE_KEY \
+                --container-name backups \
+                --name "financial_system_$TIMESTAMP.bak" \
+                --file $BACKUP_FILE
+                
+              # Clean up local backup
+              rm $BACKUP_FILE
+              
+              # Delete old backups (keep last 7 days)
+              az storage blob delete-batch \
+                --account-name $STORAGE_ACCOUNT \
+                --account-key $STORAGE_KEY \
+                --source backups \
+                --pattern "financial_system_*.bak" \
+                --if-unmodified-since $(date -d "7 days ago" +%Y-%m-%d)
+            env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: host
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-name
+            - name: STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-key
+            volumeMounts:
+            - name: backup
+              mountPath: /backup
+          volumes:
+          - name: backup
+            emptyDir: {}
+          restartPolicy: OnFailure

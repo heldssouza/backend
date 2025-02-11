@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos globais */
+body {
+  @apply antialiased;
+}
+
+/* Estilos de botões */
+.btn {
+  @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+/* Estilos de inputs */
+.input {
+  @apply block w-full rounded-md shadow-sm focus:ring-2 focus:ring-offset-2;
+}
+
+/* Estilos de cards */
+.card {
+  @apply bg-white rounded-lg shadow-sm;
+}
+
+/* Estilos de transição */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
