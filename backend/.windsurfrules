@@ -1,1 +1,7 @@
-Estamos trabalhando com powershell.
+Estamos trabalhando em um projeto multilanguage, multi tenant com banco de dados isolados, utilizando o conceito de microserviços.
+
+Este projeto lida com dados sensiveis de finanças das empresas. o nível de segurança e conformidade precisa ser elevado.
+
+Trabalhe com os mais altos padrões de qualidade de desenvolvimento de software.
+
+O terminal que estamos utilizando é o Powershell.

@@ -53,23 +53,41 @@ Sistema financeiro empresarial com suporte a múltiplos tenants, implementando o
 
 #### Estrutura
 - **Tabelas Principais**:
-  - `tenants`: Configuração de inquilinos
-  - `users`: Usuários do sistema
-  - `roles`: Papéis e permissões
-  - `user_roles`: Associação usuário-papel
-  - `refresh_tokens`: Tokens de renovação
-  - `two_factor_auth`: Configuração 2FA
-  - `audit_logs`: Registro de auditoria
+  - `Tenants`: Configuração de inquilinos
+  - `Users`: Usuários do sistema
+  - `Permissions`: Permissões do sistema
+  - `Roles`: Papéis de usuário
+  - `RolePermissions`: Associação papel-permissão
+  - `UserRoles`: Associação usuário-papel
+  - `TwoFactorAuth`: Configuração 2FA
+  - `RefreshTokens`: Tokens de renovação
+  - `SecurityLogs`: Registro de eventos de segurança
 
-#### Migrações
-- Sistema de migrações separado em:
-  - `001_schema.sql`: Estrutura do banco (DDL)
-  - `002_seed_data.sql`: Dados iniciais (DML)
+#### Migrações (Alembic)
+- Sistema de migrações organizado em:
+  - `001_create_schema.py`: Criação do schema dbo
+  - `002_create_tenants.py`: Tabela de tenants
+  - `003_create_users.py`: Tabela de usuários
+  - `004_create_permissions.py`: Tabela de permissões
+  - `005_create_roles.py`: Tabela de papéis
+  - `006_create_role_permissions.py`: Associações papel-permissão
+  - `007_create_user_roles.py`: Associações usuário-papel
+  - `008_create_security_tables.py`: Tabelas de segurança (2FA, tokens, logs)
+  - `009_add_audit_constraints.py`: Constraints de auditoria
+
+#### Campos de Auditoria
+Todas as tabelas principais incluem:
+- `created_at`: Data de criação
+- `created_by`: Usuário que criou (FK)
+- `updated_at`: Data da última atualização
+- `updated_by`: Usuário que atualizou (FK)
+- `is_deleted`: Flag de exclusão lógica
 
 #### Importância para Segurança
-- Versionamento de schema
+- Versionamento bidirecional (upgrade/downgrade)
 - Rastreabilidade de mudanças
 - Backup e recuperação facilitados
+- Auditoria completa de alterações
 
 ### 4. Cache e Performance
 
