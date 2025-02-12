@@ -1,8 +1,10 @@
 """User model."""
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, text, DateTime
+from sqlalchemy import Column, String, Boolean, ForeignKey, text, DateTime
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import relationship, Mapped, mapped_column
+from uuid import UUID
 from app.models.master.base_model import BaseModel
 
 
@@ -12,7 +14,7 @@ class User(BaseModel):
     __tablename__ = "Users"
     __table_args__ = {"schema": "dbo"}
 
-    UserID: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    UserID: Mapped[UUID] = mapped_column(UNIQUEIDENTIFIER, primary_key=True, index=True)
     Email: Mapped[str] = mapped_column(
         String(100),
         unique=True,
@@ -47,8 +49,8 @@ class User(BaseModel):
         server_default=text('0'),
         nullable=False
     )
-    TenantID: Mapped[int] = mapped_column(
-        Integer,
+    TenantID: Mapped[UUID] = mapped_column(
+        UNIQUEIDENTIFIER,
         ForeignKey("dbo.Tenants.TenantID"),
         nullable=False,
         index=True

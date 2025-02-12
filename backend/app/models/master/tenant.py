@@ -1,7 +1,7 @@
 """Tenant model."""
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, text
+from sqlalchemy import Column, String, Boolean, DateTime, text
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from uuid import UUID
@@ -27,36 +27,16 @@ class Tenant(Base):
         server_default=text('GETDATE()'),
         nullable=False
     )
-    CreatedBy: Mapped[Optional[UUID]] = mapped_column(
-        UNIQUEIDENTIFIER,
-        ForeignKey("dbo.Users.UserID"),
-        nullable=True
-    )
     UpdatedAt: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=text('GETDATE()'),
         nullable=False
-    )
-    UpdatedBy: Mapped[Optional[UUID]] = mapped_column(
-        UNIQUEIDENTIFIER,
-        ForeignKey("dbo.Users.UserID"),
-        nullable=True
     )
     IsDeleted: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text('0'),
         nullable=False,
         index=True
-    )
-
-    # Self-referential relationships
-    created_by_user = relationship(
-        "User",
-        foreign_keys=[CreatedBy]
-    )
-    updated_by_user = relationship(
-        "User",
-        foreign_keys=[UpdatedBy]
     )
 
     # Regular relationships
