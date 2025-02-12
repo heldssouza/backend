@@ -16,32 +16,32 @@ depends_on = None
 
 def upgrade() -> None:
     op.create_table('Users',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('tenant_id', sa.Integer(), nullable=False),
-        sa.Column('username', sa.String(length=100), nullable=False),
-        sa.Column('email', sa.String(length=255), nullable=False),
-        sa.Column('password_hash', sa.String(length=255), nullable=False),
-        sa.Column('first_name', sa.String(length=100), nullable=True),
-        sa.Column('last_name', sa.String(length=100), nullable=True),
-        sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
-        sa.Column('is_superuser', sa.Boolean(), server_default=sa.text('0'), nullable=False),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
-        sa.Column('created_by', sa.Integer(), nullable=True),
-        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
-        sa.Column('updated_by', sa.Integer(), nullable=True),
-        sa.Column('is_deleted', sa.Boolean(), server_default=sa.text('0'), nullable=False),
-        sa.ForeignKeyConstraint(['tenant_id'], ['dbo.Tenants.id'], ),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('email'),
-        sa.UniqueConstraint('username'),
+        sa.Column('UserID', sa.Integer(), nullable=False),
+        sa.Column('TenantID', sa.Integer(), nullable=False),
+        sa.Column('Username', sa.String(length=100), nullable=False),
+        sa.Column('Email', sa.String(length=255), nullable=False),
+        sa.Column('HashedPassword', sa.String(length=255), nullable=False),
+        sa.Column('FirstName', sa.String(length=100), nullable=True),
+        sa.Column('LastName', sa.String(length=100), nullable=True),
+        sa.Column('IsActive', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+        sa.Column('IsSuperuser', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+        sa.Column('CreatedAt', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
+        sa.Column('CreatedBy', sa.Integer(), nullable=True),
+        sa.Column('UpdatedAt', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
+        sa.Column('UpdatedBy', sa.Integer(), nullable=True),
+        sa.Column('IsDeleted', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+        sa.ForeignKeyConstraint(['TenantID'], ['dbo.Tenants.TenantID'], ),
+        sa.PrimaryKeyConstraint('UserID'),
+        sa.UniqueConstraint('Email'),
+        sa.UniqueConstraint('Username'),
         schema='dbo'
     )
-    op.create_index('ix_Users_email', 'Users', ['email'], unique=True, schema='dbo')
-    op.create_index('ix_Users_username', 'Users', ['username'], unique=True, schema='dbo')
-    op.create_index('ix_Users_tenant_id', 'Users', ['tenant_id'], schema='dbo')
+    op.create_index('ix_Users_Email', 'Users', ['Email'], unique=True, schema='dbo')
+    op.create_index('ix_Users_Username', 'Users', ['Username'], unique=True, schema='dbo')
+    op.create_index('ix_Users_TenantID', 'Users', ['TenantID'], schema='dbo')
 
 def downgrade() -> None:
-    op.drop_index('ix_Users_tenant_id', table_name='Users', schema='dbo')
-    op.drop_index('ix_Users_username', table_name='Users', schema='dbo')
-    op.drop_index('ix_Users_email', table_name='Users', schema='dbo')
+    op.drop_index('ix_Users_TenantID', table_name='Users', schema='dbo')
+    op.drop_index('ix_Users_Username', table_name='Users', schema='dbo')
+    op.drop_index('ix_Users_Email', table_name='Users', schema='dbo')
     op.drop_table('Users', schema='dbo')

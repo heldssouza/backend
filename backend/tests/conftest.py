@@ -95,14 +95,19 @@ def test_user(db_session, test_tenant):
     from app.models.master.user import User
     from app.core.security.password import get_password_hash
     
+    timestamp = datetime.now()
     user = User(
-        Email=f"test_{datetime.now().timestamp()}@example.com",
-        Username=f"test_user_{datetime.now().timestamp()}",
+        Email=f"test_{timestamp.timestamp()}@example.com",
+        Username=f"test_user_{timestamp.timestamp()}",
         HashedPassword=get_password_hash("test_password"),
-        FirstName="Test",
-        LastName="User",
         IsActive=True,
-        TenantID=test_tenant.TenantID
+        IsSuperuser=False,
+        TenantID=test_tenant.TenantID,
+        CreatedAt=timestamp,
+        CreatedBy=UUID("00000000-0000-0000-0000-000000000001"),  # System user
+        UpdatedAt=timestamp,
+        UpdatedBy=UUID("00000000-0000-0000-0000-000000000001"),  # System user
+        IsDeleted=False
     )
     db_session.add(user)
     db_session.commit()
@@ -113,10 +118,16 @@ def test_user(db_session, test_tenant):
 def test_role(db_session):
     """Create a test role"""
     from app.models.master.role import Role
+    
+    timestamp = datetime.now()
     role = Role(
         Name="test_role",
-        Description="Test Role",
-        IsActive=True
+        Description="Test role for integration tests",
+        CreatedAt=timestamp,
+        CreatedBy=UUID("00000000-0000-0000-0000-000000000001"),  # System user
+        UpdatedAt=timestamp,
+        UpdatedBy=UUID("00000000-0000-0000-0000-000000000001"),  # System user
+        IsDeleted=False
     )
     db_session.add(role)
     db_session.commit()

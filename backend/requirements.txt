@@ -6,6 +6,7 @@ uvicorn[standard]==0.27.1
 sqlalchemy==2.0.25
 pyodbc==5.0.1
 mssql-django==1.5
+alembic==1.13.1
 
 # Authentication and Security
 python-jose[cryptography]==3.3.0
