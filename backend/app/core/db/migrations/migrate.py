@@ -25,11 +25,11 @@ def get_connection():
         try:
             # Build connection string - using simpler format
             conn_str = (
-                "Driver={SQL Server};"
-                f"Server={settings.MASTER_DB_HOST};"
-                f"Database={settings.MASTER_DB_NAME};"
-                f"UID={settings.MASTER_DB_USER};"
-                f"PWD={settings.MASTER_DB_PASS};"
+                "Driver={ODBC Driver 18 for SQL Server};"
+                f"Server={settings.SQL_SERVER};"
+                f"Database={settings.SQL_PROD_DB};"
+                f"UID={settings.SQL_USER};"
+                f"PWD={settings.SQL_PASSWORD};"
                 "Encrypt=yes;"
                 "TrustServerCertificate=yes"
             )
@@ -57,33 +57,32 @@ def get_migration_files(directory: str) -> List[str]:
                 files.append(os.path.join(root, filename))
     return sorted(files)
 
-def execute_migration(conn, file_path: str):
-    """Execute a single migration file."""
+def execute_migration(conn: pyodbc.Connection, file_path: str) -> None:
+    """Execute a migration file."""
     logger.info(f"Executing migration: {os.path.basename(file_path)}")
     
-    with open(file_path, 'r', encoding='utf-8') as f:
-        sql = f.read()
-    
-    cursor = conn.cursor()
-    
     try:
-        # Split the SQL file into individual statements
-        statements = [stmt.strip() for stmt in sql.split('GO') if stmt.strip()]
+        with open(file_path, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+            
+        # Split the SQL content into individual statements
+        statements = [stmt.strip() for stmt in sql_content.split('GO') if stmt.strip()]
+        cursor = conn.cursor()
         
         for statement in statements:
-            logger.debug(f"Executing statement: {statement[:100]}...")  # Log first 100 chars
-            cursor.execute(statement)
-            
-        conn.commit()
+            try:
+                cursor.execute(statement)
+                conn.commit()
+            except Exception as e:
+                logger.error(f"Error executing statement: {statement}")
+                logger.error(f"Error details: {str(e)}")
+                raise
+                    
         logger.info(f"Successfully executed migration: {os.path.basename(file_path)}")
         
     except Exception as e:
-        conn.rollback()
         logger.error(f"Error executing migration {os.path.basename(file_path)}: {str(e)}")
-        logger.error(f"Failed statement: {statement}")
         raise
-    finally:
-        cursor.close()
 
 def main():
     """Main migration function."""

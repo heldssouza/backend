@@ -1,6 +1,31 @@
 version: '3.8'
 
 services:
+  api:
+    build: .
+    ports:
+      - "8080:8000"
+    environment:
+      - SQL_SERVER=krakensrv.database.windows.net
+      - SQL_USER=krakenadmin
+      - SQL_PASSWORD=Winnet.1
+      - SQL_PROD_DB=fdw00
+      - SQL_TEST_DB=fdw00_test
+      - SQL_PORT=1433
+      - SQL_ENCRYPT=yes
+      - SQL_TRUST_SERVER_CERTIFICATE=no
+      - SQL_CONNECTION_TIMEOUT=30
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-here
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - BACKEND_CORS_ORIGINS=["http://localhost", "http://localhost:80", "http://localhost:3000", "http://localhost:5173"]
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+
   redis:
     image: redis:7.0
     ports:
@@ -15,7 +40,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2019-latest
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong!Passw0rd
+      - SA_PASSWORD=Winnet.1
     ports:
       - "1433:1433"
     volumes:

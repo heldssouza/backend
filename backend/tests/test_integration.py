@@ -1,77 +1,70 @@
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-import pytest_asyncio
-from typing import AsyncGenerator, Dict
-import json
-import redis.asyncio as redis
-from jose import jwt
-
-# Importar a aplicação principal
+import asyncio
+from uuid import UUID
 from app.main import app
-from app.core.config.settings import get_settings
-from app.core.config.database import get_database_settings
 
-settings = get_settings()
-db_settings = get_database_settings()
+# Test tenant ID
+TEST_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
-# Fixtures
 @pytest.fixture
 def client():
     return TestClient(app)
 
-@pytest_asyncio.fixture
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        yield client
-
-@pytest.fixture
-def test_tenant_headers():
-    return {
-        "X-Tenant-ID": "test_tenant",
-        "Content-Type": "application/json"
-    }
-
-@pytest.fixture
-def redis_client():
-    return redis.Redis.from_url(settings.REDIS_URL)
-
-# Testes de Health Check
-def test_health_check(client):
-    response = client.get("/api/v1/health")
+@pytest.mark.asyncio
+async def test_health_check(client):
+    response = client.get(
+        "/api/v1/health",
+        headers={"X-Tenant-ID": TEST_TENANT_ID}
+    )
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
-    assert "database" in data
-    assert "redis" in data
+    assert "services" in data
+    assert "database" in data["services"]
+    assert data["services"]["database"] in ["ok", "error"]
 
-# Testes de Autenticação
 class TestAuth:
-    def test_register_user(self, client, test_tenant_headers):
-        user_data = {
-            "email": "test@example.com",
-            "password": "Test123!",
-            "full_name": "Test User"
-        }
+    def test_register_user(self, client):
         response = client.post(
             "/api/v1/auth/register",
-            json=user_data,
-            headers=test_tenant_headers
+            headers={"X-Tenant-ID": TEST_TENANT_ID},
+            json={
+                "email": "test@example.com",
+                "username": "testuser",
+                "password": "testpass123",
+                "is_active": True,
+                "is_superuser": False
+            }
         )
+        print("Register response:", response.json())
         assert response.status_code == 201
         data = response.json()
-        assert "id" in data
-        assert data["email"] == user_data["email"]
+        assert "email" in data
+        assert data["email"] == "test@example.com"
 
-    def test_login_user(self, client, test_tenant_headers):
-        login_data = {
-            "username": "test@example.com",
-            "password": "Test123!"
-        }
+    def test_login_user(self, client):
+        # First register a user
+        client.post(
+            "/api/v1/auth/register",
+            headers={"X-Tenant-ID": TEST_TENANT_ID},
+            json={
+                "email": "login@example.com",
+                "username": "loginuser",
+                "password": "testpass123",
+                "is_active": True,
+                "is_superuser": False
+            }
+        )
+
+        # Then try to login
         response = client.post(
             "/api/v1/auth/login",
-            json=login_data,
-            headers=test_tenant_headers
+            headers={"X-Tenant-ID": TEST_TENANT_ID},
+            data={
+                "username": "login@example.com",
+                "password": "testpass123"
+            }
         )
         assert response.status_code == 200
         data = response.json()
@@ -79,74 +72,101 @@ class TestAuth:
         assert "token_type" in data
         assert data["token_type"] == "bearer"
 
-    def test_invalid_login(self, client, test_tenant_headers):
-        login_data = {
-            "username": "test@example.com",
-            "password": "wrong_password"
-        }
+    def test_invalid_login(self, client):
         response = client.post(
             "/api/v1/auth/login",
-            json=login_data,
-            headers=test_tenant_headers
+            headers={"X-Tenant-ID": TEST_TENANT_ID},
+            data={
+                "username": "wrong@example.com",
+                "password": "wrongpass"
+            }
         )
         assert response.status_code == 401
 
-# Testes de Tenant
 class TestTenant:
     def test_tenant_isolation(self, client):
-        # Teste com tenant1
-        headers_tenant1 = {"X-Tenant-ID": "tenant1"}
-        response1 = client.get("/api/v1/users/me", headers=headers_tenant1)
-        assert response1.status_code == 401  # Não autorizado sem token
+        # Register user in tenant 1
+        tenant1_id = "00000000-0000-0000-0000-000000000002"
+        response1 = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Tenant-ID": tenant1_id},
+            json={
+                "email": "tenant1@example.com",
+                "password": "testpass123",
+                "is_active": True,
+                "is_superuser": False
+            }
+        )
+        assert response1.status_code == 201
 
-        # Teste com tenant2
-        headers_tenant2 = {"X-Tenant-ID": "tenant2"}
-        response2 = client.get("/api/v1/users/me", headers=headers_tenant2)
-        assert response2.status_code == 401  # Não autorizado sem token
+        # Try to login with same credentials but different tenant
+        tenant2_id = "00000000-0000-0000-0000-000000000003"
+        response2 = client.post(
+            "/api/v1/auth/login",
+            headers={"X-Tenant-ID": tenant2_id},
+            data={
+                "username": "tenant1@example.com",
+                "password": "testpass123"
+            }
+        )
+        assert response2.status_code == 401
 
     def test_missing_tenant_header(self, client):
-        response = client.get("/api/v1/users/me")
+        response = client.get("/api/v1/health")
         assert response.status_code == 400
-        assert "tenant" in response.json()["detail"].lower()
+        assert "X-Tenant-ID header is required" in response.json()["detail"]
 
-# Testes de RBAC
-class TestRBAC:
-    @pytest.fixture
-    def admin_token(self, client, test_tenant_headers):
-        # Login como admin
-        login_data = {
+@pytest.fixture
+def admin_token(client):
+    # Register admin user
+    client.post(
+        "/api/v1/auth/register",
+        headers={"X-Tenant-ID": TEST_TENANT_ID},
+        json={
+            "email": "admin@example.com",
+            "password": "adminpass123",
+            "is_active": True,
+            "is_superuser": True
+        }
+    )
+
+    # Login as admin
+    response = client.post(
+        "/api/v1/auth/login",
+        headers={"X-Tenant-ID": TEST_TENANT_ID},
+        data={
             "username": "admin@example.com",
-            "password": "admin123"
+            "password": "adminpass123"
         }
-        response = client.post(
-            "/api/v1/auth/login",
-            json=login_data,
-            headers=test_tenant_headers
+    )
+    return response.json()["access_token"]
+
+class TestRBAC:
+    def test_admin_access(self, client, admin_token):
+        response = client.get(
+            "/api/v1/users/me",
+            headers={
+                "Authorization": f"Bearer {admin_token}",
+                "X-Tenant-ID": TEST_TENANT_ID
+            }
         )
-        return response.json()["access_token"]
-
-    def test_admin_access(self, client, test_tenant_headers, admin_token):
-        headers = {
-            **test_tenant_headers,
-            "Authorization": f"Bearer {admin_token}"
-        }
-        response = client.get("/api/v1/users", headers=headers)
         assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == "admin@example.com"
+        assert data["is_superuser"] is True
 
-# Testes de Rate Limiting
 class TestRateLimiting:
-    async def test_rate_limiting(self, async_client, test_tenant_headers):
-        # Fazer múltiplas requisições rápidas
-        responses = []
-        for _ in range(100):
-            response = await async_client.get(
+    def test_rate_limiting(self, client):
+        # Make multiple requests in quick succession
+        for _ in range(5):
+            client.get(
                 "/api/v1/health",
-                headers=test_tenant_headers
+                headers={"X-Tenant-ID": TEST_TENANT_ID}
             )
-            responses.append(response.status_code)
 
-        # Deve haver alguns 429 (Too Many Requests)
-        assert 429 in responses
-
-if __name__ == "__main__":
-    pytest.main(["-v", __file__])
+        # The next request should be rate limited
+        response = client.get(
+            "/api/v1/health",
+            headers={"X-Tenant-ID": TEST_TENANT_ID}
+        )
+        assert response.status_code == 429

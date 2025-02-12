@@ -46,6 +46,8 @@ Esta aplicação serve como interface para o Data Warehouse Financeiro, fornecen
 - [Vite](https://vitejs.dev/) - Build tool e dev server
 - [Heroicons](https://heroicons.com/) - Conjunto de ícones SVG
 - [Axios](https://axios-http.com/) - Cliente HTTP
+- [Vue I18n](https://vue-i18n.intlify.dev/) - Internacionalização
+- [DaisyUI](https://daisyui.com/) - Componentes Tailwind CSS
 
 ## 📁 Estrutura do Projeto
 
@@ -58,11 +60,31 @@ frontend/
 │   ├── router/        # Configuração de rotas
 │   ├── stores/        # Estados globais (Pinia)
 │   ├── views/         # Páginas/Views da aplicação
+│   ├── core/
+│   │   ├── i18n/     # Configurações e arquivos de internacionalização
+│   │   └── store/    # Stores principais do sistema
 │   ├── App.vue        # Componente raiz
 │   └── main.js        # Ponto de entrada da aplicação
 ├── public/            # Arquivos públicos
 └── index.html         # Template HTML principal
 ```
+
+## 🌍 Internacionalização
+
+O projeto utiliza Vue I18n para suporte a múltiplos idiomas:
+
+- Idiomas suportados:
+  - Português (Brasil) - pt-BR (padrão)
+  - Inglês (Estados Unidos) - en-US
+
+- Estrutura de localização:
+  ```
+  src/core/i18n/
+  ├── index.js         # Configuração do Vue I18n
+  └── locales/         # Arquivos de tradução
+      ├── pt-BR.js     # Traduções em português
+      └── en-US.js     # Traduções em inglês
+  ```
 
 ## 🛠️ Instalação
 
@@ -88,6 +110,8 @@ O projeto utiliza as seguintes versões principais de dependências:
 - Vue Router: 4.2.5
 - Pinia: 2.1.7
 - Tailwind CSS: 3.3.5
+- Vue I18n: 9.8.0
+- DaisyUI: 4.4.19
 
 ## 🌐 Ambiente de Desenvolvimento
 

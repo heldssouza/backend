@@ -27,13 +27,6 @@ async def register(
     user_service = UserService(db)
     audit_service = AuditService(db)
     
-    # Check if username exists
-    if user_service.get_user_by_username(user_data.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-    
     # Check if email exists
     if user_service.get_user_by_email(user_data.email):
         raise HTTPException(
@@ -48,10 +41,9 @@ async def register(
     await audit_service.log_action(
         action="REGISTER_USER",
         entity_type="USER",
-        entity_id=user.id,
-        user_id=user.id,
-        tenant_id=None,
-        changes=user_data.model_dump(exclude={"password"})
+        entity_id=user.UserID,
+        user_id=user.UserID,
+        tenant_id=user.TenantID
     )
     
     return user
@@ -65,121 +57,113 @@ async def login(
     """
     OAuth2 compatible token login, get an access token for future requests.
     """
-    security_service = SecurityService()
     user_service = UserService(db)
     audit_service = AuditService(db)
+    security_service = SecurityService(db)
     
-    # Authenticate user
-    user = user_service.get_user_by_username(form_data.username)
-    if not user or not security_service.verify_password(form_data.password, user.hashed_password):
+    user = user_service.authenticate_user(form_data.username, form_data.password)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Check if user is active
-    if not user.is_active:
+    if not user.IsActive:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is inactive",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
         )
     
-    # Generate 2FA code if enabled
-    if user.two_factor_enabled:
-        two_factor_auth.generate_code(user.id)
-        raise HTTPException(
-            status_code=status.HTTP_202_ACCEPTED,
-            detail="2FA code required",
-            headers={"X-2FA-Required": "true"},
+    # Check if 2FA is enabled
+    requires_2fa = two_factor_auth.is_2fa_enabled(user)
+    if requires_2fa:
+        return Token(
+            access_token="",
+            token_type="bearer",
+            requires_2fa=True
         )
     
-    # Create access token
+    # Generate tokens
     access_token = security_service.create_access_token(
-        data={"sub": user.username}
+        data={"sub": user.Email, "tenant_id": str(user.TenantID)}
     )
-    
-    # Create refresh token
-    refresh_token = security_service.create_access_token(
-        data={"sub": user.username, "type": "refresh"},
-        expires_delta=timedelta(days=30)
-    )
+    refresh_token = security_service.create_refresh_token(user_id=user.UserID)
     
     # Log audit
     await audit_service.log_action(
         action="LOGIN",
         entity_type="USER",
-        entity_id=user.id,
-        user_id=user.id,
-        tenant_id=None
+        entity_id=user.UserID,
+        user_id=user.UserID,
+        tenant_id=user.TenantID
     )
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        requires_2fa=False
+    )
 
 
 @router.post("/verify-2fa", response_model=Token)
 async def verify_2fa(
     code: str,
-    username: str,
+    email: str,
     db: Session = Depends(get_db)
 ):
     """
     Verify 2FA code and get access token.
     """
-    security_service = SecurityService()
     user_service = UserService(db)
     audit_service = AuditService(db)
+    security_service = SecurityService(db)
     
-    # Get user
-    user = user_service.get_user_by_username(username)
+    user = user_service.get_user_by_email(email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    if not user.IsActive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+    
     # Verify 2FA code
-    if not two_factor_auth.verify_code(user.id, code):
+    if not two_factor_auth.verify_2fa_code(user, code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid 2FA code",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token
+    # Generate tokens
     access_token = security_service.create_access_token(
-        data={"sub": user.username}
+        data={"sub": user.Email, "tenant_id": str(user.TenantID)}
     )
-    
-    # Create refresh token
-    refresh_token = security_service.create_access_token(
-        data={"sub": user.username, "type": "refresh"},
-        expires_delta=timedelta(days=30)
-    )
+    refresh_token = security_service.create_refresh_token(user_id=user.UserID)
     
     # Log audit
     await audit_service.log_action(
         action="2FA_VERIFY",
         entity_type="USER",
-        entity_id=user.id,
-        user_id=user.id,
-        tenant_id=None
+        entity_id=user.UserID,
+        user_id=user.UserID,
+        tenant_id=user.TenantID
     )
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        requires_2fa=False
+    )
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh-token", response_model=Token)
 async def refresh_token(
     refresh_token_data: RefreshToken,
     db: Session = Depends(get_db)
@@ -187,60 +171,53 @@ async def refresh_token(
     """
     Get a new access token using refresh token.
     """
-    security_service = SecurityService()
     user_service = UserService(db)
     audit_service = AuditService(db)
+    security_service = SecurityService(db)
     
-    try:
-        # Verify refresh token
-        payload = security_service.verify_token(refresh_token_data.refresh_token)
-        if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Get user
-        user = user_service.get_user_by_username(refresh_token_data.username)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Create new access token
-        access_token = security_service.create_access_token(
-            data={"sub": user.username}
-        )
-        
-        # Create new refresh token
-        new_refresh_token = security_service.create_access_token(
-            data={"sub": user.username, "type": "refresh"},
-            expires_delta=timedelta(days=30)
-        )
-        
-        # Log audit
-        await audit_service.log_action(
-            action="REFRESH_TOKEN",
-            entity_type="USER",
-            entity_id=user.id,
-            user_id=user.id,
-            tenant_id=None
-        )
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer"
-        }
-    except JWTError:
+    # Validate refresh token
+    user_id = security_service.validate_refresh_token(refresh_token_data.refresh_token)
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Get user
+    user = user_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user.IsActive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+    
+    # Generate new access token
+    access_token = security_service.create_access_token(
+        data={"sub": user.Email, "tenant_id": str(user.TenantID)}
+    )
+    
+    # Log audit
+    await audit_service.log_action(
+        action="REFRESH_TOKEN",
+        entity_type="USER",
+        entity_id=user.UserID,
+        user_id=user.UserID,
+        tenant_id=user.TenantID
+    )
+    
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        requires_2fa=False
+    )
 
 
 @router.post("/logout")
@@ -251,14 +228,19 @@ async def logout(
     """
     Logout current user.
     """
-    # Log audit
     audit_service = AuditService(db)
+    security_service = SecurityService(db)
+    
+    # Invalidate refresh token
+    security_service.invalidate_refresh_token(current_user.UserID)
+    
+    # Log audit
     await audit_service.log_action(
         action="LOGOUT",
         entity_type="USER",
-        entity_id=current_user.id,
-        user_id=current_user.id,
-        tenant_id=None
+        entity_id=current_user.UserID,
+        user_id=current_user.UserID,
+        tenant_id=current_user.TenantID
     )
     
     return {"message": "Successfully logged out"}

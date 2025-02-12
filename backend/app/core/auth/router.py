@@ -30,18 +30,18 @@ async def login(
     """
     # Authenticate user
     user = db.query(User).filter(
-        User.username == form_data.username,
-        User.tenant_id == tenant_id
+        User.Username == form_data.username,
+        User.TenantID == tenant_id
     ).first()
     
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, user.HashedPassword):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    if not user.is_active:
+    if not user.IsActive:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User is inactive"
@@ -58,8 +58,8 @@ async def login(
     # Create access token
     access_token = create_access_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "access"
         }
     )
@@ -67,8 +67,8 @@ async def login(
     # Create refresh token
     refresh_token = create_refresh_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "refresh"
         }
     )
@@ -76,8 +76,8 @@ async def login(
     # Store refresh token in database
     db_refresh_token = RefreshToken(
         token=refresh_token,
-        user_id=user.user_id,
-        tenant_id=user.tenant_id,
+        user_id=user.id,
+        tenant_id=user.TenantID,
         expires_at=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     )
     db.add(db_refresh_token)
@@ -112,7 +112,7 @@ async def refresh_token(
 
     # Get user
     user = db.query(User).filter(User.id == db_refresh_token.user_id).first()
-    if not user or not user.is_active:
+    if not user or not user.IsActive:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User is inactive"
@@ -121,8 +121,8 @@ async def refresh_token(
     # Create new access token
     access_token = create_access_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "access"
         }
     )
@@ -130,8 +130,8 @@ async def refresh_token(
     # Create new refresh token
     new_refresh_token = create_refresh_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "refresh"
         }
     )
@@ -144,7 +144,7 @@ async def refresh_token(
     new_db_refresh_token = RefreshToken(
         token=new_refresh_token,
         user_id=user.id,
-        tenant_id=user.tenant_id,
+        tenant_id=user.TenantID,
         expires_at=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     )
     db.add(new_db_refresh_token)
@@ -182,7 +182,7 @@ async def setup_2fa(
     # Generate QR code
     qr_code = get_totp_uri(
         secret=secret,
-        username=current_user.username,
+        username=current_user.Username,
         issuer=settings.APP_NAME
     )
 
@@ -237,17 +237,17 @@ async def verify_2fa(
     """
     # Authenticate user
     user = db.query(User).filter(
-        User.username == form_data.username,
-        User.tenant_id == tenant_id
+        User.Username == form_data.username,
+        User.TenantID == tenant_id
     ).first()
     
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, user.HashedPassword):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
         )
 
-    if not user.is_active:
+    if not user.IsActive:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User is inactive"
@@ -269,8 +269,8 @@ async def verify_2fa(
     # Create access token
     access_token = create_access_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "access"
         }
     )
@@ -278,8 +278,8 @@ async def verify_2fa(
     # Create refresh token
     refresh_token = create_refresh_token(
         data={
-            "sub": user.username,
-            "tenant_id": user.tenant_id,
+            "sub": user.Username,
+            "tenant_id": user.TenantID,
             "type": "refresh"
         }
     )
@@ -288,7 +288,7 @@ async def verify_2fa(
     db_refresh_token = RefreshToken(
         token=refresh_token,
         user_id=user.id,
-        tenant_id=user.tenant_id,
+        tenant_id=user.TenantID,
         expires_at=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     )
     db.add(db_refresh_token)

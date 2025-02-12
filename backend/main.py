@@ -8,10 +8,10 @@ app = FastAPI(title="Vue-Python Microservices API")
 # Configuração do CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # URL do frontend Vue.js
+    allow_origins=["http://localhost", "http://localhost:80", "http://localhost:3000", "http://127.0.0.1"],  # Adapte conforme necessário
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Permite todos os métodos (GET, POST, PUT, DELETE)
+    allow_headers=["*"],  # Permite todos os cabeçalhos
 )
 
 # Simulação de banco de dados em memória

@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: Inter var, ui-sans-serif, system-ui;
+  }
+}
+
+@layer components {
+  .btn-custom {
+    @apply btn normal-case;
+  }
+
+  .btn-secondary {
+    @apply btn btn-secondary normal-case;
+  }
+
+  .input-primary {
+    @apply input input-bordered w-full;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .form-error {
+    @apply text-sm text-error mt-1;
+  }
+
+  .card-container {
+    @apply bg-white shadow-sm rounded-lg p-6;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold text-gray-900 mb-6;
+  }
+
+  .section-title {
+    @apply text-lg font-medium text-gray-900 mb-4;
+  }
+}

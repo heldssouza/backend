@@ -1,4 +1,5 @@
 """Seed test data."""
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.core.db.session import SessionLocal
 from app.models.master import Tenant, Role, User, Permission
@@ -13,8 +14,11 @@ def seed_test_data():
         # Create test tenant
         tenant = Tenant()
         tenant.Name = "Test Tenant"
-        tenant.Domain = "test.com"
+        tenant.Subdomain = "test"
         tenant.IsActive = True
+        tenant.IsDeleted = False
+        tenant.CreatedAt = datetime.utcnow()
+        tenant.UpdatedAt = datetime.utcnow()
         db.add(tenant)
         db.flush()
 
@@ -25,6 +29,10 @@ def seed_test_data():
             permission.Name = perm_data["name"]
             permission.Code = perm_data["code"]
             permission.Description = perm_data["description"]
+            permission.IsActive = True
+            permission.IsDeleted = False
+            permission.CreatedAt = datetime.utcnow()
+            permission.UpdatedAt = datetime.utcnow()
             db.add(permission)
             permissions[permission.Code] = permission
         db.flush()
@@ -34,7 +42,10 @@ def seed_test_data():
         admin_role.Name = "Admin"
         admin_role.Description = "Administrator role"
         admin_role.IsActive = True
+        admin_role.IsDeleted = False
         admin_role.TenantID = tenant.TenantID
+        admin_role.CreatedAt = datetime.utcnow()
+        admin_role.UpdatedAt = datetime.utcnow()
         admin_role.Permissions.extend(permissions.values())
         db.add(admin_role)
 
@@ -43,7 +54,10 @@ def seed_test_data():
         user_role.Name = "User"
         user_role.Description = "Basic user role"
         user_role.IsActive = True
+        user_role.IsDeleted = False
         user_role.TenantID = tenant.TenantID
+        user_role.CreatedAt = datetime.utcnow()
+        user_role.UpdatedAt = datetime.utcnow()
         basic_permissions = [
             permissions["read_user"],
             permissions["read_role"],
@@ -60,10 +74,19 @@ def seed_test_data():
         admin_user.FirstName = "Admin"
         admin_user.LastName = "User"
         admin_user.IsActive = True
+        admin_user.IsDeleted = False
         admin_user.IsSuperuser = True
         admin_user.TenantID = tenant.TenantID
+        admin_user.CreatedAt = datetime.utcnow()
+        admin_user.UpdatedAt = datetime.utcnow()
         admin_user.Roles.append(admin_role)
         db.add(admin_user)
+        db.flush()
+
+        # Update tenant with admin user as creator
+        tenant.CreatedBy = admin_user.UserID
+        tenant.UpdatedBy = admin_user.UserID
+        db.flush()
 
         # Create test regular user
         regular_user = User()
@@ -72,10 +95,26 @@ def seed_test_data():
         regular_user.FirstName = "Regular"
         regular_user.LastName = "User"
         regular_user.IsActive = True
+        regular_user.IsDeleted = False
         regular_user.IsSuperuser = False
         regular_user.TenantID = tenant.TenantID
+        regular_user.CreatedAt = datetime.utcnow()
+        regular_user.UpdatedAt = datetime.utcnow()
+        regular_user.CreatedBy = admin_user.UserID
+        regular_user.UpdatedBy = admin_user.UserID
         regular_user.Roles.append(user_role)
         db.add(regular_user)
+
+        # Update roles with admin user as creator
+        admin_role.CreatedBy = admin_user.UserID
+        admin_role.UpdatedBy = admin_user.UserID
+        user_role.CreatedBy = admin_user.UserID
+        user_role.UpdatedBy = admin_user.UserID
+
+        # Update permissions with admin user as creator
+        for permission in permissions.values():
+            permission.CreatedBy = admin_user.UserID
+            permission.UpdatedBy = admin_user.UserID
 
         db.commit()
         print("Test data seeded successfully!")

@@ -2,65 +2,63 @@
 -- Copyright (c) 2025 BControlTech Consultoria em Gestão e Tecnologia
 -- All rights reserved.
 
--- Enable IDENTITY_INSERT and insert Master Tenant
-SET IDENTITY_INSERT [dbo].[tenants] ON
+-- Create test tenant
+SET IDENTITY_INSERT [dbo].[Tenants] ON
 GO
 
-INSERT INTO [dbo].[tenants] ([id], [name], [subdomain], [database_name], [is_active])
-VALUES (1, 'Master', 'master', 'fdw00_test', 1)
+INSERT INTO [dbo].[Tenants] ([TenantID], [Name], [Domain], [IsActive])
+VALUES (2, 'Test', 'test', 1)
 GO
 
-SET IDENTITY_INSERT [dbo].[tenants] OFF
+SET IDENTITY_INSERT [dbo].[Tenants] OFF
 GO
 
--- Create admin role
-INSERT INTO [dbo].[roles] (
-    [name],
-    [description],
-    [permissions],
-    [is_active],
-    [tenant_id]
+-- Create test admin role
+INSERT INTO [dbo].[Roles] (
+    [Name],
+    [Description],
+    [IsActive],
+    [TenantID]
 )
 VALUES (
-    'admin',
-    'System Administrator',
-    'users.create,users.read,users.update,users.delete,roles.create,roles.read,roles.update,roles.delete,tenants.create,tenants.read,tenants.update,tenants.delete',
+    'test_admin',
+    'Test Administrator',
     1,
-    1
+    2
 )
 GO
 
--- Create admin user (password: Admin@123)
-INSERT INTO [dbo].[users] (
-    [email],
-    [username],
-    [password_hash],
-    [first_name],
-    [last_name],
-    [is_active],
-    [is_superuser],
-    [tenant_id]
+-- Create test admin user (password: Test@123)
+INSERT INTO [dbo].[Users] (
+    [Email],
+    [HashedPassword],
+    [FirstName],
+    [LastName],
+    [IsActive],
+    [IsSuperuser],
+    [TenantID],
+    [Username]
 )
 VALUES (
-    'admin@bcontroltech.com',
-    'admin',
+    'test@bcontroltech.com',
     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNfh/geL.SoVu',
-    'System',
+    'Test',
     'Administrator',
     1,
     1,
-    1
+    2,
+    'test'
 )
 GO
 
--- Assign admin role to admin user
-INSERT INTO [dbo].[user_roles] (
-    [user_id],
-    [role_id]
+-- Assign test admin role to test admin user
+INSERT INTO [dbo].[UserRoles] (
+    [UserID],
+    [RoleID]
 )
-SELECT u.id, r.id
-FROM [dbo].[users] u
-CROSS JOIN [dbo].[roles] r
-WHERE u.username = 'admin'
-AND r.name = 'admin'
+SELECT u.UserID, r.RoleID
+FROM [dbo].[Users] u
+CROSS JOIN [dbo].[Roles] r
+WHERE u.Email = 'test@bcontroltech.com'
+AND r.Name = 'test_admin'
 GO

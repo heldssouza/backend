@@ -10,11 +10,18 @@ class TokenPayload(BaseModel):
 
 
 class Token(BaseModel):
-    """Token schema."""
+    """Schema for authentication token."""
     access_token: str
     token_type: str = "bearer"
     expires_in: int
     refresh_token: Optional[str] = None
+    requires_2fa: bool = False
+
+
+class TokenData(BaseModel):
+    """Schema for token payload."""
+    username: str
+    scopes: List[str] = []
 
 
 class RefreshToken(BaseModel):

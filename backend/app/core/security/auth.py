@@ -1,82 +1,130 @@
 """
-Authentication and Security Module
+Authentication service.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, List
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import HTTPException, Security, Depends
-from fastapi.security import OAuth2PasswordBearer
-from app.core.config.settings import get_settings
-from app.core.tenant.context import TenantContext
+from typing import Optional
+from fastapi import HTTPException, status
+from jose import jwt
+from sqlalchemy.orm import Session
+from app.core.config import get_settings
+from app.core.security.password import get_password_hash, verify_password
+from app.models.master.user import User
+from app.schemas.master.user import UserCreate
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify if a plain password matches a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Generate a password hash."""
-    return pwd_context.hash(password)
 
 class SecurityService:
     """Security service for authentication and authorization."""
-    
-    verify_password = staticmethod(verify_password)
-    get_password_hash = staticmethod(get_password_hash)
 
-    @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create a new access token."""
+    def __init__(self, db: Session):
+        self.db = db
+
+    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+        """
+        Authenticate user with username and password.
+        
+        Args:
+            username: Username or email
+            password: Plain password
+            
+        Returns:
+            User if authenticated, None otherwise
+        """
+        # Try to find user by username or email
+        user = (
+            self.db.query(User)
+            .filter(
+                (User.username == username) | (User.email == username)
+            )
+            .first()
+        )
+        
+        if not user:
+            return None
+            
+        if not verify_password(password, user.hashed_password):
+            return None
+            
+        return user
+
+    def create_access_token(
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None
+    ) -> str:
+        """
+        Create JWT access token.
+        
+        Args:
+            data: Token data
+            expires_delta: Token expiration time
+            
+        Returns:
+            Encoded JWT token
+        """
         to_encode = data.copy()
+        
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.utcnow() + timedelta(
+                minutes=settings.access_token_expire_minutes
+            )
             
-        to_encode.update({
-            "exp": expire,
-            "tenant_id": TenantContext.get_tenant_id(),
-            "iat": datetime.utcnow(),
-            "type": "access"
-        })
+        to_encode.update({"exp": expire})
         
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        return jwt.encode(
+            to_encode,
+            settings.jwt_secret_key,
+            algorithm=settings.jwt_algorithm
+        )
 
-    @staticmethod
-    def verify_token(token: str) -> dict:
-        """Verify and decode a JWT token."""
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            if payload.get("type") != "access":
-                raise HTTPException(status_code=401, detail="Invalid token type")
-            return payload
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Could not validate credentials")
-
-class PermissionChecker:
-    """Permission checker for role-based access control."""
-    
-    def __init__(self, required_permissions: List[str]):
-        self.required_permissions = required_permissions
-
-    def __call__(self, token: str = Security(oauth2_scheme)):
-        payload = SecurityService.verify_token(token)
-        user_permissions = payload.get("permissions", [])
+    def create_user(self, user_data: UserCreate) -> User:
+        """
+        Create new user.
         
-        for permission in self.required_permissions:
-            if permission not in user_permissions:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Permission denied. Required permission: {permission}"
-                )
-        
-        return payload
+        Args:
+            user_data: User creation data
+            
+        Returns:
+            Created user
+        """
+        # Check if username exists
+        if (
+            self.db.query(User)
+            .filter(User.username == user_data.username)
+            .first()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            )
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
-    """Get the current authenticated user."""
-    return SecurityService.verify_token(token)
+        # Check if email exists
+        if (
+            self.db.query(User)
+            .filter(User.email == user_data.email)
+            .first()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        # Create user
+        db_user = User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=get_password_hash(user_data.password),
+            is_active=user_data.is_active,
+            is_superuser=user_data.is_superuser,
+            tenant_id=user_data.tenant_id
+        )
+        
+        self.db.add(db_user)
+        self.db.commit()
+        self.db.refresh(db_user)
+        
+        return db_user
