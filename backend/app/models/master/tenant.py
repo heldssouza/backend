@@ -52,13 +52,11 @@ class Tenant(Base):
     # Self-referential relationships
     created_by_user = relationship(
         "User",
-        foreign_keys=[CreatedBy],
-        back_populates="created_tenants"
+        foreign_keys=[CreatedBy]
     )
     updated_by_user = relationship(
         "User",
-        foreign_keys=[UpdatedBy],
-        back_populates="updated_tenants"
+        foreign_keys=[UpdatedBy]
     )
 
     # Regular relationships

@@ -90,10 +90,8 @@ class RateLimiter:
                 current_tokens -= cost
 
             # Update Redis
-            pipe = self.redis.pipeline()
-            pipe.set(window_key, str(window_start), ex=self.config.window_size * 2)
-            pipe.set(tokens_key, str(current_tokens), ex=self.config.window_size * 2)
-            await pipe.execute()
+            await self.redis.set(window_key, str(window_start), expire=self.config.window_size * 2)
+            await self.redis.set(tokens_key, str(current_tokens), expire=self.config.window_size * 2)
 
             # Calculate rate limit info
             reset_time = int(window_start + self.config.window_size - now)
@@ -158,8 +156,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _get_client_id(self, request: Request) -> str:
         """Get unique identifier for the client"""
-        client_ip = request.client.host
-        
+        # Get client IP
+        client_ip = "test_client"
+        if request.client and request.client.host:
+            client_ip = request.client.host
+            
         # Add user ID if authenticated
         user_id = getattr(request.state, "user_id", None)
         if user_id:

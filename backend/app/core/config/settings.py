@@ -78,7 +78,7 @@ class Settings(BaseSettings):
         return f"mssql+pymssql://{username}:{password}@{server}/{db}"
     
     # Redis
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: Optional[str] = None
     REDIS_DB: int = 0

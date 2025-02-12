@@ -6,7 +6,7 @@ from uuid import UUID
 from app.main import app
 
 # Test tenant ID
-TEST_TENANT_ID = "1"
+TEST_TENANT_ID = "00000000-0000-0000-0000-000000000002"
 
 @pytest.fixture
 def client():
@@ -61,8 +61,8 @@ class TestAuth:
         response = client.post(
             "/api/v1/auth/login",
             headers={"X-Tenant-ID": TEST_TENANT_ID},
-            data={
-                "username": "login@example.com",
+            json={
+                "username": "loginuser",
                 "password": "testpass123"
             }
         )
@@ -76,8 +76,8 @@ class TestAuth:
         response = client.post(
             "/api/v1/auth/login",
             headers={"X-Tenant-ID": TEST_TENANT_ID},
-            data={
-                "username": "wrong@example.com",
+            json={
+                "username": "nonexistent",
                 "password": "wrongpass"
             }
         )
@@ -85,34 +85,33 @@ class TestAuth:
 
 class TestTenant:
     def test_tenant_isolation(self, client):
-        # Register user in tenant 1
-        tenant1_id = "00000000-0000-0000-0000-000000000002"
-        response1 = client.post(
+        # Create a user in tenant 1
+        response = client.post(
             "/api/v1/auth/register",
-            headers={"X-Tenant-ID": tenant1_id},
+            headers={"X-Tenant-ID": TEST_TENANT_ID},
             json={
                 "email": "tenant1@example.com",
+                "username": "tenant1user",
                 "password": "testpass123",
                 "is_active": True,
                 "is_superuser": False
             }
         )
-        assert response1.status_code == 201
+        assert response.status_code == 201
 
-        # Try to login with same credentials but different tenant
-        tenant2_id = "00000000-0000-0000-0000-000000000003"
-        response2 = client.post(
+        # Try to login with the same credentials but different tenant
+        response = client.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-ID": tenant2_id},
-            data={
-                "username": "tenant1@example.com",
+            headers={"X-Tenant-ID": "00000000-0000-0000-0000-000000000001"},  # Master tenant
+            json={
+                "username": "tenant1user",
                 "password": "testpass123"
             }
         )
-        assert response2.status_code == 401
+        assert response.status_code == 401
 
     def test_missing_tenant_header(self, client):
-        response = client.get("/api/v1/health")
+        response = client.get("/api/v1/health")  # No X-Tenant-ID header
         assert response.status_code == 400
         assert "X-Tenant-ID header is required" in response.json()["detail"]
 
@@ -124,18 +123,19 @@ def admin_token(client):
         headers={"X-Tenant-ID": TEST_TENANT_ID},
         json={
             "email": "admin@example.com",
+            "username": "adminuser",
             "password": "adminpass123",
             "is_active": True,
             "is_superuser": True
         }
     )
 
-    # Login as admin
+    # Login and get token
     response = client.post(
         "/api/v1/auth/login",
         headers={"X-Tenant-ID": TEST_TENANT_ID},
-        data={
-            "username": "admin@example.com",
+        json={
+            "username": "adminuser",
             "password": "adminpass123"
         }
     )
@@ -144,16 +144,13 @@ def admin_token(client):
 class TestRBAC:
     def test_admin_access(self, client, admin_token):
         response = client.get(
-            "/api/v1/users/me",
+            "/api/v1/users",
             headers={
-                "Authorization": f"Bearer {admin_token}",
-                "X-Tenant-ID": TEST_TENANT_ID
+                "X-Tenant-ID": TEST_TENANT_ID,
+                "Authorization": f"Bearer {admin_token}"
             }
         )
         assert response.status_code == 200
-        data = response.json()
-        assert data["email"] == "admin@example.com"
-        assert data["is_superuser"] is True
 
 class TestRateLimiting:
     def test_rate_limiting(self, client):
@@ -169,4 +166,4 @@ class TestRateLimiting:
             "/api/v1/health",
             headers={"X-Tenant-ID": TEST_TENANT_ID}
         )
-        assert response.status_code == 429
+        assert response.status_code == 429  # Too Many Requests

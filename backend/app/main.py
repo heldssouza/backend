@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.auth.router import router as auth_router
 from app.core.config.settings import get_settings
 from app.core.tenant.middleware import TenantMiddleware
+from app.core.security.rate_limit import RateLimitMiddleware
 from app.api.v1.api import api_router
 
 settings = get_settings()
@@ -28,6 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Rate Limiting Middleware
+app.add_middleware(RateLimitMiddleware)
 
 # Tenant Middleware
 app.add_middleware(TenantMiddleware)

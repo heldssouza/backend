@@ -5,6 +5,7 @@ from fastapi import Depends
 from app.core.config.settings import Settings, get_settings
 import json
 import logging
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +58,27 @@ class RedisCache:
         try:
             return await self._client.exists(key)
         except Exception as e:
-            logger.error(f"Error checking key {key} existence in Redis: {str(e)}")
+            logger.error(f"Error checking key {key} in Redis: {str(e)}")
             return False
 
+    async def increment(self, key: str) -> int:
+        """Increment value in cache."""
+        try:
+            return await self._client.incr(key)
+        except Exception as e:
+            logger.error(f"Error incrementing key {key} in Redis: {str(e)}")
+            return 0
+
+    async def decrement(self, key: str) -> int:
+        """Decrement value in cache."""
+        try:
+            return await self._client.decr(key)
+        except Exception as e:
+            logger.error(f"Error decrementing key {key} in Redis: {str(e)}")
+            return 0
+
     async def expire(self, key: str, seconds: int) -> bool:
-        """Set key expiration time."""
+        """Set expiration for key."""
         try:
             return await self._client.expire(key, seconds)
         except Exception as e:
@@ -69,12 +86,28 @@ class RedisCache:
             return False
 
     async def ttl(self, key: str) -> int:
-        """Get key time to live."""
+        """Get time to live for key."""
         try:
             return await self._client.ttl(key)
         except Exception as e:
-            logger.error(f"Error getting TTL for key {key} from Redis: {str(e)}")
-            return -1
+            logger.error(f"Error getting TTL for key {key} in Redis: {str(e)}")
+            return -2
+
+    async def keys(self, pattern: str) -> list:
+        """Get keys matching pattern."""
+        try:
+            return await self._client.keys(pattern)
+        except Exception as e:
+            logger.error(f"Error getting keys matching pattern {pattern} from Redis: {str(e)}")
+            return []
+
+    async def flush_all(self) -> bool:
+        """Delete all keys in cache."""
+        try:
+            return await self._client.flushall()
+        except Exception as e:
+            logger.error(f"Error flushing Redis: {str(e)}")
+            return False
 
     async def incr(self, key: str) -> int:
         try:
@@ -119,7 +152,22 @@ class RedisCache:
         """Close Redis connection."""
         await self._client.close()
 
-async def get_redis_client(settings: Settings = Depends(get_settings)) -> RedisCache:
+def get_redis_client() -> redis.Redis:
     """Get Redis client."""
-    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    settings = get_settings()
+    try:
+        client = redis.from_url(
+            settings.REDIS_URL or f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+            decode_responses=True,
+            retry_on_timeout=True,
+            socket_keepalive=True
+        )
+        return client
+    except Exception as e:
+        logger.error(f"Error connecting to Redis: {str(e)}")
+        raise
+
+def get_redis_cache() -> RedisCache:
+    """Get Redis cache."""
+    client = get_redis_client()
     return RedisCache(client)

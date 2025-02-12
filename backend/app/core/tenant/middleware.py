@@ -24,13 +24,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
         self.settings = settings or get_settings()
         self.public_paths = {
             "/docs",
+            "/redoc",
             "/openapi.json",
-            "/api/v1/docs",
-            "/api/v1/openapi.json",
             "/test",
             "/",
-            "/health",
-            "/api/v1/health",
+            "/api/v1/docs",
+            "/api/v1/openapi.json",
+            "/api/v1/health/"
         }
 
     async def dispatch(self, request: Request, call_next):

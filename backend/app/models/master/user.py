@@ -26,7 +26,7 @@ class User(BaseModel):
         index=True
     )
     HashedPassword: Mapped[str] = mapped_column(
-        String(100),
+        String(255),
         nullable=False
     )
     FirstName: Mapped[Optional[str]] = mapped_column(
@@ -58,26 +58,17 @@ class User(BaseModel):
         server_default=text('GETDATE()'),
         nullable=False
     )
-    CreatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("dbo.Users.UserID"),
-        nullable=True
-    )
     UpdatedAt: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=text('GETDATE()'),
         nullable=False
     )
-    UpdatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("dbo.Users.UserID"),
-        nullable=True
-    )
     IsDeleted: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text('0'),
         nullable=False,
-        index=True
+        index=True,
+        default=False
     )
 
     # Relacionamentos regulares

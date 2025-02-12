@@ -28,8 +28,7 @@ class DetailedHealthResponse(BaseModel):
 
 @router.get(
     "/",
-    response_model=HealthResponse,
-    dependencies=[Depends(rate_limit(max_requests=5, window_seconds=60))]
+    response_model=HealthResponse
 )
 async def health_check(
     request: Request,
