@@ -3,15 +3,10 @@
 -- All rights reserved.
 
 -- Create test tenant
-SET IDENTITY_INSERT [dbo].[Tenants] ON
-GO
+DECLARE @TestTenantID UNIQUEIDENTIFIER = '00000000-0000-0000-0000-000000000002';
 
 INSERT INTO [dbo].[Tenants] ([TenantID], [Name], [Domain], [IsActive])
-VALUES (2, 'Test', 'test', 1)
-GO
-
-SET IDENTITY_INSERT [dbo].[Tenants] OFF
-GO
+VALUES (@TestTenantID, 'Test', 'test', 1);
 
 -- Create test admin role
 INSERT INTO [dbo].[Roles] (
@@ -24,9 +19,8 @@ VALUES (
     'test_admin',
     'Test Administrator',
     1,
-    2
-)
-GO
+    @TestTenantID
+);
 
 -- Create test admin user (password: Test@123)
 INSERT INTO [dbo].[Users] (
@@ -46,10 +40,9 @@ VALUES (
     'Administrator',
     1,
     1,
-    2,
+    @TestTenantID,
     'test'
-)
-GO
+);
 
 -- Assign test admin role to test admin user
 INSERT INTO [dbo].[UserRoles] (
@@ -60,5 +53,4 @@ SELECT u.UserID, r.RoleID
 FROM [dbo].[Users] u
 CROSS JOIN [dbo].[Roles] r
 WHERE u.Email = 'test@bcontroltech.com'
-AND r.Name = 'test_admin'
-GO
+AND r.Name = 'test_admin';

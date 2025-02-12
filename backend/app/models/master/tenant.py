@@ -1,8 +1,10 @@
 """Tenant model."""
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, text
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, text
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import relationship, Mapped, mapped_column
+from uuid import UUID
 from app.core.db.base import Base
 
 
@@ -12,7 +14,7 @@ class Tenant(Base):
     __tablename__ = "Tenants"
     __table_args__ = {"schema": "dbo"}
 
-    TenantID: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    TenantID: Mapped[UUID] = mapped_column(UNIQUEIDENTIFIER, primary_key=True, index=True)
     Name: Mapped[str] = mapped_column(String(100), nullable=False)
     Subdomain: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     IsActive: Mapped[bool] = mapped_column(
@@ -25,8 +27,8 @@ class Tenant(Base):
         server_default=text('GETDATE()'),
         nullable=False
     )
-    CreatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
+    CreatedBy: Mapped[Optional[UUID]] = mapped_column(
+        UNIQUEIDENTIFIER,
         ForeignKey("dbo.Users.UserID"),
         nullable=True
     )
@@ -35,8 +37,8 @@ class Tenant(Base):
         server_default=text('GETDATE()'),
         nullable=False
     )
-    UpdatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
+    UpdatedBy: Mapped[Optional[UUID]] = mapped_column(
+        UNIQUEIDENTIFIER,
         ForeignKey("dbo.Users.UserID"),
         nullable=True
     )
@@ -51,12 +53,12 @@ class Tenant(Base):
     created_by_user = relationship(
         "User",
         foreign_keys=[CreatedBy],
-        backref="created_tenants"
+        back_populates="created_tenants"
     )
     updated_by_user = relationship(
         "User",
         foreign_keys=[UpdatedBy],
-        backref="updated_tenants"
+        back_populates="updated_tenants"
     )
 
     # Regular relationships

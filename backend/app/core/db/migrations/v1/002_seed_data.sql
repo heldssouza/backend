@@ -2,13 +2,11 @@
 -- Copyright (c) 2025 BControlTech Consultoria em Gestão e Tecnologia
 -- All rights reserved.
 
--- Enable IDENTITY_INSERT and insert Master Tenant
-SET IDENTITY_INSERT [dbo].[Tenants] ON;
+-- Insert Master Tenant
+DECLARE @MasterTenantID UNIQUEIDENTIFIER = '00000000-0000-0000-0000-000000000001';
 
 INSERT INTO [dbo].[Tenants] ([TenantID], [Name], [Domain], [IsActive])
-VALUES (1, 'Master', 'master', 1);
-
-SET IDENTITY_INSERT [dbo].[Tenants] OFF;
+VALUES (@MasterTenantID, 'Master', 'master', 1);
 
 -- Create admin role
 INSERT INTO [dbo].[Roles] (
@@ -21,7 +19,7 @@ VALUES (
     'admin',
     'System Administrator',
     1,
-    1
+    @MasterTenantID
 );
 
 -- Create admin user (password: Admin@123)
@@ -42,7 +40,7 @@ VALUES (
     'Administrator',
     1,
     1,
-    1,
+    @MasterTenantID,
     'admin'
 );
 

@@ -6,7 +6,7 @@ from uuid import UUID
 from app.main import app
 
 # Test tenant ID
-TEST_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+TEST_TENANT_ID = "1"
 
 @pytest.fixture
 def client():

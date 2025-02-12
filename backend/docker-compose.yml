@@ -5,6 +5,8 @@ services:
     build: .
     ports:
       - "8080:8000"
+    volumes:
+      - .:/app
     environment:
       - SQL_SERVER=krakensrv.database.windows.net
       - SQL_USER=krakenadmin
