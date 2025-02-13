@@ -16,13 +16,16 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
+    # Primeiro criamos a tabela sem as foreign keys
     op.create_table('Tenants',
         sa.Column('TenantID', UNIQUEIDENTIFIER(), nullable=False),
         sa.Column('Name', sa.String(length=100), nullable=False),
         sa.Column('Subdomain', sa.String(length=100), nullable=False),
         sa.Column('IsActive', sa.Boolean(), server_default=sa.text('1'), nullable=False),
         sa.Column('CreatedAt', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
+        sa.Column('CreatedBy', UNIQUEIDENTIFIER(), nullable=True),
         sa.Column('UpdatedAt', sa.DateTime(), server_default=sa.text('GETDATE()'), nullable=False),
+        sa.Column('UpdatedBy', UNIQUEIDENTIFIER(), nullable=True),
         sa.Column('IsDeleted', sa.Boolean(), server_default=sa.text('0'), nullable=False),
         sa.PrimaryKeyConstraint('TenantID'),
         sa.UniqueConstraint('Subdomain'),

@@ -1,8 +1,9 @@
 """Base model with common fields and SQL Server conventions."""
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Column, Integer, DateTime, Boolean, ForeignKey, text
-from sqlalchemy.dialects.mssql import DATETIME2
+from uuid import UUID
+from sqlalchemy import Column, DateTime, Boolean, ForeignKey, text
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER, DATETIME2
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.db.base import Base
 
@@ -16,8 +17,8 @@ class BaseModel(Base):
         server_default=text('GETDATE()'),
         nullable=False
     )
-    CreatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
+    CreatedBy: Mapped[Optional[UUID]] = mapped_column(
+        UNIQUEIDENTIFIER,
         ForeignKey('dbo.Users.UserID'),
         nullable=True  # Nullable for initial system records
     )
@@ -27,8 +28,8 @@ class BaseModel(Base):
         onupdate=text('GETDATE()'),
         nullable=False
     )
-    UpdatedBy: Mapped[Optional[int]] = mapped_column(
-        Integer,
+    UpdatedBy: Mapped[Optional[UUID]] = mapped_column(
+        UNIQUEIDENTIFIER,
         ForeignKey('dbo.Users.UserID'),
         nullable=True
     )
